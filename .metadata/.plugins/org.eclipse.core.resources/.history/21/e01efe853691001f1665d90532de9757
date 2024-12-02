@@ -1,0 +1,52 @@
+package com.razorpaypoc.service;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import com.razorpay.RazorpayException;
+import com.razorpaypoc.entity.UserPayment;
+import com.razorpaypoc.repository.UserPaymentRepository;
+
+@Service
+public class UserPaymentServiceImpl implements UserPaymentService {
+
+    @Autowired
+    private UserPaymentRepository userPaymentRepository;
+
+    private static final String RAZORPAY_KEY = "YOUR_RAZORPAY_KEY_ID";
+    private static final String RAZORPAY_SECRET = "YOUR_RAZORPAY_SECRET";
+
+    @Override
+    public List<UserPayment> getAllPayments() {
+        return userPaymentRepository.findAll();
+    }
+
+    @Override
+    public UserPayment createOrder(UserPayment userPayment) {
+        try {
+            RazorpayClient razorpayClient = new RazorpayClient(RAZORPAY_KEY, RAZORPAY_SECRET);
+            Order orderRequest = new Order();
+            orderRequest.set("amount", userPayment.getAmount() * 100); // Amount in paise
+            orderRequest.set("currency", "INR");
+            orderRequest.set("receipt", userPayment.getId().toString());
+
+            Order order = razorpayClient.Orders.create(orderRequest);
+            userPayment.setPaymentStatus("PENDING");
+            userPaymentRepository.save(userPayment);
+            return userPayment;
+        } catch (RazorpayException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    @Override
+    public String verifyPayment(String orderId, String paymentId, String signature) {
+        // Implement verification logic here
+        return "Payment verified successfully"; // Return appropriate response
+    }
+}

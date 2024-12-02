@@ -1,0 +1,5 @@
+package com.razorpaypoc.entity;
+
+public class UserPayment {
+
+}

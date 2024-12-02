@@ -1,0 +1,5 @@
+package com.razorpaypoc.dto;
+
+public class PaymentRequest {
+
+}

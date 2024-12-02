@@ -1,0 +1,42 @@
+package com.razorpaypoc.controller;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.razorpaypoc.entity.UserPayment;
+import com.razorpaypoc.service.PaymentService;
+
+
+@RestController
+@RequestMapping("/api/payments")
+public class PaymentController {
+
+    @Autowired
+    private PaymentService paymentService;
+
+    // Get all payment details
+    @GetMapping("/all")
+    public List<UserPayment> getAllPayments() {
+        return paymentService.getAllPayments();
+    }
+
+    // Create an order
+    @PostMapping("/create-order")
+    public ResponseEntity<Map<String, String>> createOrder(@RequestBody UserPayment userPayment) {
+        return paymentService.createOrder(userPayment);
+    }
+
+    // Verify Payment
+    @PostMapping("/verify-payment")
+    public ResponseEntity<String> verifyPayment(@RequestBody Map<String, String> data) {
+        return paymentService.verifyPayment(data);
+    }
+}

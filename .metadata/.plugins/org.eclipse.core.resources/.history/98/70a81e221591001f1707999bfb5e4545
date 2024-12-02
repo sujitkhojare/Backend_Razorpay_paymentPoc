@@ -1,0 +1,5 @@
+package com.razorpaypoc;
+
+public class UserPaymentRepository {
+
+}

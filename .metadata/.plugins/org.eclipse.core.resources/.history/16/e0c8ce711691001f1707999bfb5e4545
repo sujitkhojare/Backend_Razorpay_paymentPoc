@@ -1,0 +1,103 @@
+package com.razorpaypoc.service;
+package com.comapny.job.portal.service.impl;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.commons.codec.binary.Hex;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import com.razorpay.RazorpayException;
+import com.razorpaypoc.entity.UserPayment;
+import com.razorpaypoc.repository.UserPaymentRepository;
+
+@Service
+public class PaymentServiceImpl implements PaymentService {
+
+    @Autowired
+    private UserPaymentRepository userPaymentRepository;
+
+    private static final String RAZORPAY_KEY = "YOUR_RAZORPAY_KEY_ID";
+    private static final String RAZORPAY_SECRET = "YOUR_RAZORPAY_SECRET";
+
+    // Create an order
+    @Override
+    public ResponseEntity<Map<String, String>> createOrder(UserPayment userPayment) {
+        try {
+            RazorpayClient razorpayClient = new RazorpayClient(RAZORPAY_KEY, RAZORPAY_SECRET);
+
+            // Create order request
+            JSONObject orderRequest = new JSONObject();
+            int amountInPaise = (int) (userPayment.getAmount() * 100); // Amount in paise (INR)
+            orderRequest.put("amount", amountInPaise);
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", UUID.randomUUID().toString());
+
+            // Create order via Razorpay API
+            Order order = razorpayClient.Orders.create(orderRequest);
+
+            // Save order details in DB with paymentStatus as "Created"
+            userPayment.setOrderId(order.get("id"));
+            userPayment.setPaymentStatus("Created");
+            userPaymentRepository.save(userPayment);
+
+            // Return order details to frontend
+            Map<String, String> response = new HashMap<>();
+            response.put("order_id", order.get("id"));
+            response.put("amount", String.valueOf(amountInPaise));
+            response.put("name", userPayment.getName());
+
+            return ResponseEntity.ok(response);
+
+        } catch (RazorpayException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Verify Payment
+    @Override
+    public ResponseEntity<String> verifyPayment(Map<String, String> data) {
+        String razorpayOrderId = data.get("razorpay_order_id");
+        String razorpayPaymentId = data.get("razorpay_payment_id");
+        String razorpaySignature = data.get("razorpay_signature");
+
+        try {
+            // Generate signature and verify it
+            String payload = razorpayOrderId + "|" + razorpayPaymentId;
+            String generatedSignature = hmacSHA256(payload, RAZORPAY_SECRET);
+
+            if (generatedSignature.equals(razorpaySignature)) {
+                // Update payment status to "Paid" on success
+                UserPayment userPayment = userPaymentRepository.findByOrderId(razorpayOrderId);
+                if (userPayment != null) {
+                    userPayment.setPaymentStatus("Paid");
+                    userPaymentRepository.save(userPayment);
+                }
+                return ResponseEntity.ok("Payment verified successfully!");
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid signature");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error while verifying payment");
+        }
+    }
+
+    // Helper method to generate HMAC SHA256 signature
+    private String hmacSHA256(String data, String secret) throws Exception {
+        Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
+        SecretKeySpec secret_key = new SecretKeySpec(secret.getBytes(), "HmacSHA256");
+        sha256_HMAC.init(secret_key);
+        return Hex.encodeHexString(sha256_HMAC.doFinal(data.getBytes()));
+    }
+}

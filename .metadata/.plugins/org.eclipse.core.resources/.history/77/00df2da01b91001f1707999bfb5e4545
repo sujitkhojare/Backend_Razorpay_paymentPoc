@@ -1,0 +1,15 @@
+package com.razorpaypoc.service;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.http.ResponseEntity;
+
+import com.razorpaypoc.entity.UserPayment;
+
+public interface UserPaymentService {
+	
+    List<UserPayment> getAllPayments();
+    UserPayment createOrder(UserPayment userPayment);
+    String verifyPayment(String orderId, String paymentId, String signature);
+}

@@ -1,0 +1,5 @@
+package com.razorpaypoc.config;
+
+public class WebConfig {
+
+}

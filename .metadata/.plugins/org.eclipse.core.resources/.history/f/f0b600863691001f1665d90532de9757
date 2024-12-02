@@ -1,0 +1,77 @@
+package com.razorpaypoc.service;
+
+
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class PaymentServiceImpl implements PaymentService {
+
+    @Autowired
+    private PaymentStatusRepository paymentStatusRepository;
+
+    private RazorpayClient razorpayClient;
+
+    public PaymentServiceImpl() throws Exception {
+        this.razorpayClient = new RazorpayClient("YOUR_RAZORPAY_KEY_ID", "YOUR_RAZORPAY_SECRET");
+    }
+
+    @Override
+    public PaymentStatus createOrder(String name, String email, String mobile, int amount) {
+        try {
+            // Create a new order in Razorpay
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", amount * 100); // Amount in paise (convert from Rs to paise)
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", "txn_123456");
+
+            Order order = razorpayClient.Orders.create(orderRequest);
+
+            // Create and save payment status
+            PaymentStatus paymentStatus = new PaymentStatus();
+            paymentStatus.setOrderId(order.get("id"));
+            paymentStatus.setName(name);
+            paymentStatus.setEmail(email);
+            paymentStatus.setMobile(mobile);
+            paymentStatus.setAmount(amount * 100); // Store amount in paise
+            paymentStatus.setStatus("CREATED");
+
+            return paymentStatusRepository.save(paymentStatus);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error creating Razorpay order: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public PaymentStatus verifyPayment(String orderId, String paymentId, String razorpaySignature) {
+        try {
+            // Verify the payment signature using Razorpay utility
+            PaymentStatus paymentStatus = paymentStatusRepository.findByOrderId(orderId);
+            if (paymentStatus != null) {
+                // Simulate signature verification (replace with actual Razorpay utility code)
+                // if valid:
+                paymentStatus.setPaymentId(paymentId);
+                paymentStatus.setStatus("SUCCESS");
+
+                // Save the updated payment status
+                return paymentStatusRepository.save(paymentStatus);
+            }
+            throw new RuntimeException("Order not found");
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error verifying payment: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<PaymentStatus> getAllPayments() {
+        return paymentStatusRepository.findAll();
+    }
+}
+
